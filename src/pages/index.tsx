@@ -2,10 +2,56 @@ import Head from 'next/head'
 import { Inter } from 'next/font/google'
 import styles from '@/styles/Home.module.css'
 import { startRegistration } from '@simplewebauthn/browser';
+import { PublicKeyCredentialCreationOptionsJSON } from '@simplewebauthn/typescript-types';
 
 
 const inter = Inter({ subsets: ['latin'] })
-
+function register() {
+  // rp: PublicKeyCredentialRpEntity;
+  //   user: PublicKeyCredentialUserEntityJSON;
+  //   challenge: Base64URLString;
+  //   pubKeyCredParams: PublicKeyCredentialParameters[];
+  //   timeout?: number;
+  //   excludeCredentials?: PublicKeyCredentialDescriptorJSON[];
+  //   authenticatorSelection?: AuthenticatorSelectionCriteria;
+  //   attestation?: AttestationConveyancePreference;
+  //   extensions?: AuthenticationExtensionsClientInputs;
+  var challengeid = "1234567890abcdef";
+  var userid = "1234567890abcdef";
+  let json_data: PublicKeyCredentialCreationOptionsJSON = {
+    challenge: challengeid,
+    rp: {
+      id: "localhost",
+      name: "rp name"
+    },
+    user: {
+      id: userid,
+      name: "name",
+      displayName: "displayName"
+    },
+    pubKeyCredParams: [
+      {
+        type: "public-key",
+        alg: -7,
+      }
+    ],
+    authenticatorSelection: {
+      authenticatorAttachment: "cross-platform",
+      userVerification: "discouraged",
+      requireResidentKey: false
+    },
+    // excludeCredentials: [
+    //   {
+    //     id:userid,
+    //     transports: [],
+    //     type: "public-key"
+    //   }
+    // ],
+    timeout: 60000,
+    attestation: "direct",
+  }
+  startRegistration(json_data)
+}
 // function register() {
 //   var challengeid = new Uint8Array(16);
 //   var userid = new Uint8Array(16);
