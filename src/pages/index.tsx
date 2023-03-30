@@ -1,11 +1,14 @@
 import Head from 'next/head'
 import { Inter } from 'next/font/google'
 import styles from '@/styles/Home.module.css'
-import { startRegistration } from '@simplewebauthn/browser';
-import { PublicKeyCredentialCreationOptionsJSON } from '@simplewebauthn/typescript-types';
-
-
+import { startRegistration, startAuthentication } from '@simplewebauthn/browser';
+import { PublicKeyCredentialCreationOptionsJSON, PublicKeyCredentialRequestOptionsJSON } from '@simplewebauthn/typescript-types';
+import axios from 'axios'
+import { UserOutlined } from '@ant-design/icons';
+import { Input, Col, Row, Button, Space } from 'antd';
+import React from 'react';
 const inter = Inter({ subsets: ['latin'] })
+const formRef = React.createRef()
 function register() {
   // rp: PublicKeyCredentialRpEntity;
   //   user: PublicKeyCredentialUserEntityJSON;
@@ -16,102 +19,71 @@ function register() {
   //   authenticatorSelection?: AuthenticatorSelectionCriteria;
   //   attestation?: AttestationConveyancePreference;
   //   extensions?: AuthenticationExtensionsClientInputs;
-  var challengeid = "1234567890abcdef";
-  var userid = "1234567890abcdef";
-  let json_data: PublicKeyCredentialCreationOptionsJSON = {
-    challenge: challengeid,
-    rp: {
-      id: "localhost",
-      name: "rp name"
-    },
-    user: {
-      id: userid,
-      name: "name",
-      displayName: "displayName"
-    },
-    pubKeyCredParams: [
-      {
-        type: "public-key",
-        alg: -7,
-      }
-    ],
-    authenticatorSelection: {
-      authenticatorAttachment: "cross-platform",
-      userVerification: "discouraged",
-      requireResidentKey: false
-    },
-    // excludeCredentials: [
-    //   {
-    //     id:userid,
-    //     transports: [],
-    //     type: "public-key"
-    //   }
-    // ],
-    timeout: 60000,
-    attestation: "direct",
-  }
-  startRegistration(json_data)
+  axios.get("/api/get_register",).then((res) => {
+    var challengeid = res.data.data.challengeid;
+    var userid = res.data.data.userid;
+    let json_data: PublicKeyCredentialCreationOptionsJSON = {
+      challenge: challengeid,
+      rp: {
+        id: "webauthn.sylu.site",
+        name: "rp name"
+      },
+      user: {
+        id: userid,
+        name: "name",
+        displayName: "displayName"
+      },
+      pubKeyCredParams: [
+        {
+          type: "public-key",
+          alg: -7,
+        }
+      ],
+      authenticatorSelection: {
+        authenticatorAttachment: "cross-platform",
+        userVerification: "preferred",
+        requireResidentKey: false
+      },
+      // excludeCredentials: [
+      //   {
+      //     id:userid,
+      //     transports: [],
+      //     type: "public-key"
+      //   }
+      // ],
+      timeout: 60000,
+      attestation: "direct",
+    }
+    console.log(json_data)
+    startRegistration(json_data).then((res) => {
+      console.log(res)
+      axios.post("/api/register", res)
+    })
+  })
 }
-// function register() {
-//   var challengeid = new Uint8Array(16);
-//   var userid = new Uint8Array(16);
-//   console.log("challengeid: ", challengeid)
-//   console.log("userid: ", userid)
-//   navigator.credentials.create({
-//     publicKey: {
-//       challenge: challengeid,
-//       rp: {
-//         id: "localhost",
-//         name: "rp name"
-//       },
-//       user: {
-//         id: userid,
-//         name: "name",
-//         displayName: "displayName"
-//       },
-//       pubKeyCredParams: [
-//         {
-//           type: "public-key",
-//           alg: -7,
-//         }
-//       ],
-//       authenticatorSelection: {
-//         authenticatorAttachment: "cross-platform",
-//         userVerification: "discouraged",
-//         requireResidentKey: false
-//       },
-//       // excludeCredentials: [
-//       //   {
-//       //     id:userid,
-//       //     transports: [],
-//       //     type: "public-key"
-//       //   }
-//       // ],
-//       timeout: 60000,
-//       attestation: "direct",
-//     }
-//   }).then((cret) => {
-//     console.log(cret)
-//     let data = {
-//       "id":cret?.id,
-//       "type":cret?.type,
-//       "rawId": array2b64String(new Uint8Array(cret.rawId)),
-//       "clientdata":array2b64String(new Uint8Array(cret.response.clientDataJSON)),
-//       "attestationObject": array2b64String(new Uint8Array(cret.response.attestationObject))
-//       // "response":cret.response
-//       // "response":{
-//       //   "clientdata":array2b64String(new Uint8Array(cret.response.clientDataJSON)),
-//       //   "attestationObject": array2b64String(new Uint8Array(cret.response.attestationObject))
-//       // }
-//     }
-//     console.log(data)
-//     axios.post('http://localhost:3000/',data)
-//     // const transports = cred?.response.getTransports()[0];
+function login() {
+  axios.get("/api/get_login").then((res) => {
+    console.log(res)
+    let ars = res.data.allowCredentials
+    console.log(ars)
+    var challengeid = res.data.data.challengeid;
+    var userid = res.data.data.userid;
+    let json_data: PublicKeyCredentialRequestOptionsJSON = {
+      challenge: challengeid,
+      timeout: 60000,
+      rpId: "webauthn.sylu.site",
+      allowCredentials: ars,
+      userVerification: "discouraged",
+      extensions: {},
+    }
+    startAuthentication(json_data).then((res) => {
+      console.log(res)
+      axios.post("/api/login", res)
+    })
+  })
+}
 
-//   })
-// }
-
-export default function Home() {
+export default function Home(this: any) {
   return (
     <>
       <Head>
@@ -122,7 +94,18 @@ export default function Home() {
       </Head>
       <main className={styles.main}>
         <div>
-          <button onClick={register}>register</button>
+          <Space direction="vertical" size="middle" style={{ display: 'flex' }}>
+            <Input size="large" placeholder="example_username" prefix={<UserOutlined /> } ref={this.formRef} />
+
+            <Row gutter={16}>
+              <Col span={12}>
+                <Button type="primary" onClick={register} block>register</Button>
+              </Col>
+              <Col span={12}>
+                <Button type="primary" onClick={login} block>login</Button>
+              </Col>
+            </Row>
+          </Space>
         </div>
       </main>
     </>
