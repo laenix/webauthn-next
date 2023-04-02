@@ -5,85 +5,107 @@ import { startRegistration, startAuthentication } from '@simplewebauthn/browser'
 import { PublicKeyCredentialCreationOptionsJSON, PublicKeyCredentialRequestOptionsJSON } from '@simplewebauthn/typescript-types';
 import axios from 'axios'
 import { UserOutlined } from '@ant-design/icons';
-import { Input, Col, Row, Button, Space } from 'antd';
-import React from 'react';
+import { Input, Col, Row, Button, Space, notification } from 'antd';
+import { useState } from 'react';
 const inter = Inter({ subsets: ['latin'] })
-const formRef = React.createRef()
-function register() {
-  // rp: PublicKeyCredentialRpEntity;
-  //   user: PublicKeyCredentialUserEntityJSON;
-  //   challenge: Base64URLString;
-  //   pubKeyCredParams: PublicKeyCredentialParameters[];
-  //   timeout?: number;
-  //   excludeCredentials?: PublicKeyCredentialDescriptorJSON[];
-  //   authenticatorSelection?: AuthenticatorSelectionCriteria;
-  //   attestation?: AttestationConveyancePreference;
-  //   extensions?: AuthenticationExtensionsClientInputs;
-  axios.get("/api/get_register",).then((res) => {
-    var challengeid = res.data.data.challengeid;
-    var userid = res.data.data.userid;
-    let json_data: PublicKeyCredentialCreationOptionsJSON = {
-      challenge: challengeid,
-      rp: {
-        id: "webauthn.sylu.site",
-        name: "rp name"
-      },
-      user: {
-        id: userid,
-        name: "name",
-        displayName: "displayName"
-      },
-      pubKeyCredParams: [
-        {
-          type: "public-key",
-          alg: -7,
-        }
-      ],
-      authenticatorSelection: {
-        authenticatorAttachment: "cross-platform",
-        userVerification: "preferred",
-        requireResidentKey: false
-      },
-      // excludeCredentials: [
-      //   {
-      //     id:userid,
-      //     transports: [],
-      //     type: "public-key"
-      //   }
-      // ],
-      timeout: 60000,
-      attestation: "direct",
-    }
-    console.log(json_data)
-    startRegistration(json_data).then((res) => {
-      console.log(res)
-      axios.post("/api/register", res)
-    })
-  })
-}
-function login() {
-  axios.get("/api/get_login").then((res) => {
-    console.log(res)
-    let ars = res.data.allowCredentials
-    console.log(ars)
-    var challengeid = res.data.data.challengeid;
-    var userid = res.data.data.userid;
-    let json_data: PublicKeyCredentialRequestOptionsJSON = {
-      challenge: challengeid,
-      timeout: 60000,
-      rpId: "webauthn.sylu.site",
-      allowCredentials: ars,
-      userVerification: "discouraged",
-      extensions: {},
-    }
-    startAuthentication(json_data).then((res) => {
-      console.log(res)
-      axios.post("/api/login", res)
-    })
-  })
-}
 
 export default function Home(this: any) {
+  const [username, setUsername] = useState("")
+  function register() {
+    axios.get("/api/get_register", { params: { "name": username } }).then((res) => {
+      if (res.data.code != 200) {
+        notification.open({
+          message: res.data.msg,
+          description: res.data.data,
+          placement: "top"
+        });
+        return
+      }
+      console.log(res)
+      console.log(username)
+      var challengeid = res.data.data.challengeid;
+      var userid = res.data.data.userid;
+      let json_data: PublicKeyCredentialCreationOptionsJSON = {
+        challenge: challengeid,
+        rp: {
+          id: "webauthn.sylu.site",
+          name: "rp name"
+        },
+        user: {
+          id: userid,
+          name: username,
+          displayName: "displayName"
+        },
+        pubKeyCredParams: [
+          {
+            type: "public-key",
+            alg: -7,
+          }
+        ],
+        authenticatorSelection: {
+          authenticatorAttachment: "cross-platform",
+          userVerification: "discouraged",
+          requireResidentKey: false
+        },
+        timeout: 60000,
+        attestation: "direct",
+      }
+      console.log(json_data)
+      startRegistration(json_data).then((res) => {
+        console.log(res)
+        axios.post("/api/register", res).then((res) => {
+          if (res.data.code != 200) {
+            notification.open({
+              message: res.data.msg,
+              description: res.data.data,
+              placement: "top"
+            });
+            return
+          }
+        })
+      })
+    })
+  }
+
+  function login() {
+    axios.get("/api/get_login", { params: { "name": username } }).then((res) => {
+      if (res.data.code != 200) {
+        notification.open({
+          message: res.data.msg,
+          description: res.data.data,
+          placement: "top"
+        });
+        return
+      }
+      console.log(res)
+      let ars = res.data.data.allowCredentials
+      console.log(ars)
+      var challengeid = res.data.data.challenge;
+      console.log(ars)
+      let json_data: PublicKeyCredentialRequestOptionsJSON = {
+        challenge: challengeid,
+        timeout: 60000,
+        rpId: "webauthn.sylu.site",
+        allowCredentials: ars,
+        userVerification: "discouraged",
+        extensions: {},
+      }
+      startAuthentication(json_data).then((res) => {
+        console.log(res)
+        axios.post("/api/login", res).then((res) => {
+          notification.open({
+            message: res.data.msg,
+            description: res.data.data,
+            placement: "top"
+          });
+          return
+        })
+      })
+    })
+  }
+  function change(e: { target: { value: any; }; }) {
+    setUsername(e.target.value)
+  }
   return (
     <>
       <Head>
@@ -95,7 +117,7 @@ export default function Home(this: any) {
       <main className={styles.main}>
         <div>
           <Space direction="vertical" size="middle" style={{ display: 'flex' }}>
-            <Input size="large" placeholder="example_username" prefix={<UserOutlined /> } ref={this.formRef} />
+            <Input size="large" placeholder="example_username" prefix={<UserOutlined />} onChange={change} />
 
             <Row gutter={16}>
               <Col span={12}>
